@@ -1,0 +1,288 @@
+<!DOCTYPE html>
+<html lang="gu">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Chamunda Workers CNC Tools</title>
+    
+    <script src="https://www.gstatic.com/firebasejs/9.17.1/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.17.1/firebase-database-compat.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.25/jspdf.plugin.autotable.min.js"></script>
+
+    <style>
+        :root { --bg: #ffffff; --text: #333; --card: #f4f4f4; --nav: #eee; --pri: #d32f2f; }
+        [data-theme="dark"] { --bg: #121212; --text: #ffffff; --card: #1e1e1e; --nav: #222; --pri: #ff5252; }
+
+        body { font-family: 'Segoe UI', sans-serif; background: var(--bg); color: var(--text); margin: 0; padding-bottom: 80px; transition: 0.3s; }
+        .header { text-align: center; padding: 15px; border-bottom: 2px solid var(--pri); position: sticky; top: 0; background: var(--bg); z-index: 100; }
+        .container { padding: 10px; max-width: 900px; margin: auto; }
+        
+        .card { background: var(--card); padding: 15px; border-radius: 10px; margin-bottom: 15px; box-shadow: 0 2px 5px rgba(0,0,0,0.1); }
+        input, select, button { width: 100%; padding: 12px; margin-top: 8px; border-radius: 5px; border: 1px solid #ccc; box-sizing: border-box; font-size: 15px; }
+        button { background: var(--pri); color: white; border: none; cursor: pointer; font-weight: bold; }
+        
+        .bottom-nav { position: fixed; bottom: 0; width: 100%; background: var(--nav); display: flex; border-top: 1px solid #444; height: 65px; }
+        .nav-item { flex: 1; text-align: center; padding: 10px; cursor: pointer; font-size: 12px; }
+        .active-nav { border-top: 3px solid var(--pri); background: rgba(211, 47, 47, 0.1); }
+
+        .hidden { display: none; }
+        table { width: 100%; border-collapse: collapse; margin-top: 15px; font-size: 13px; }
+        th, td { border: 1px solid #555; padding: 10px; text-align: left; }
+        .status-sync { font-size: 11px; color: green; text-align: center; margin-bottom: 5px; }
+        .btn-del-sm { background: red; padding: 4px 8px; font-size: 10px; width: auto; margin: 0; }
+    </style>
+</head>
+<body>
+
+<div class="header">
+    <h2 style="margin:0; color:var(--pri);">ચામુંડા વર્કર્સ સીએનસી ટુલ્સ</h2>
+    <div id="sync-status" class="status-sync">ઓનલાઇન સિંક ચાલુ છે...</div>
+</div>
+
+<div class="container">
+    <div id="entry-sec">
+        <div class="card">
+            <h4>નવી એન્ટ્રી</h4>
+            <label>તારીખ:</label>
+            <input type="date" id="t-date">
+            <div style="display:flex; gap:10px; margin: 15px 0;">
+                <button id="btnOut" onclick="setMode('OUT')" style="background:#8540f5">Tool Out</button>
+                <button id="btnIn" onclick="setMode('IN')" style="background:#6c757d">Tool In</button>
+            </div>
+            <div id="entry-fields"></div>
+            <button onclick="saveTransaction()" style="background: #28a745; margin-top: 15px;">સેવ અને સિંક કરો</button>
+        </div>
+    </div>
+
+    <div id="report-sec" class="hidden">
+        <div class="card">
+            <h4>રિપોર્ટ ફિલ્ટર (તારીખ થી તારીખ)</h4>
+            <div style="display:flex; gap:10px;">
+                <input type="date" id="rep-from">
+                <input type="date" id="rep-to">
+            </div>
+            <input type="text" id="search-box" placeholder="નામ શોધો (ઓપરેટર / ટૂલ)..." oninput="updateAllReports()">
+        </div>
+
+        <div class="card">
+            <h4>PDF રિપોર્ટ ડાઉનલોડ</h4>
+            <div style="display:flex; gap:10px;">
+                <button onclick="downloadPDF('HISTORY')" style="background:#17a2b8; font-size: 12px;">તારીખ મુજબ વિગત (PDF)</button>
+                <button onclick="downloadPDF('STOCK')" style="background:#e83e8c; font-size: 12px;">કેટેગરી મુજબ સ્ટોક (PDF)</button>
+            </div>
+        </div>
+
+        <div class="card" style="overflow-x:auto;">
+            <h4>સ્ટોક સ્ટેટસ</h4>
+            <table id="stock-table">
+                <thead><tr><th>કેટેગરી</th><th>ટૂલ</th><th>કુલ ખરીદી</th><th>સ્ટોકમાં</th></tr></thead>
+                <tbody id="stock-body"></tbody>
+            </table>
+        </div>
+
+        <div class="card" style="overflow-x:auto;">
+            <h4>વ્યવહાર ઇતિહાસ (એન્ટ્રી ડીલીટ કરી શકાય)</h4>
+            <table id="history-table">
+                <thead><tr><th>તારીખ</th><th>ઓપરેટર</th><th>ટૂલ</th><th>પ્રકાર</th><th>નંગ</th><th>Action</th></tr></thead>
+                <tbody id="history-body"></tbody>
+            </table>
+        </div>
+    </div>
+
+    <div id="setting-sec" class="hidden">
+        <button onclick="toggleTheme()" style="background:#444">Dark / Light Mode</button>
+        <div class="card">
+            <h4>માસ્ટર સેટિંગ્સ</h4>
+            <input type="text" id="new-op" placeholder="નવા ઓપરેટરનું નામ">
+            <button onclick="addMaster('operators', 'new-op')">ઓપરેટર ઉમેરો</button>
+            <div id="op-list-display" style="margin-top:10px;"></div>
+            <hr>
+            <input type="text" id="new-tool" placeholder="ટૂલનું નામ">
+            <input type="text" id="new-cat" placeholder="કેટેગરી">
+            <input type="number" id="new-stock" placeholder="ઓપનિંગ સ્ટોક">
+            <button onclick="addToolMaster()">ટૂલ ઉમેરો</button>
+            <div id="tool-list-display" style="margin-top:10px;"></div>
+        </div>
+    </div>
+</div>
+
+<nav class="bottom-nav">
+    <div class="nav-item active-nav" id="n-entry" onclick="showSec('entry')">📝<br>એન્ટ્રી</div>
+    <div class="nav-item" id="n-report" onclick="showSec('report')">📊<br>રિપોર્ટ</div>
+    <div class="nav-item" id="n-setting" onclick="showSec('setting')">⚙️<br>સેટિંગ્સ</div>
+</nav>
+
+<script>
+    // Firebase Config
+    const firebaseConfig = {
+        apiKey: "AIzaSyCsqhpmQDF0X6ssqTxQ_p2d15VZDJMcE0g",
+        authDomain: "prakashbhaitools.firebaseapp.com",
+        projectId: "prakashbhaitools",
+        storageBucket: "prakashbhaitools.firebasestorage.app",
+        messagingSenderId: "362668027589",
+        appId: "1:362668027589:web:abb83273896edba9910aac",
+        databaseURL: "https://prakashbhaitools-default-rtdb.firebaseio.com"
+    };
+
+    firebase.initializeApp(firebaseConfig);
+    const database = firebase.database();
+
+    let db = { operators: [], tools: [], transactions: [] };
+    let currentMode = 'OUT';
+
+    // Sync from Firebase
+    database.ref('tools_data').on('value', (snapshot) => {
+        const data = snapshot.val();
+        if (data) {
+            db = data;
+            if(!db.transactions) db.transactions = [];
+            if(!db.operators) db.operators = [];
+            if(!db.tools) db.tools = [];
+            renderMasterLists();
+            updateAllReports();
+            setMode(currentMode);
+            document.getElementById('sync-status').innerText = "ઓનલાઇન સિંક છે ✅";
+        }
+    });
+
+    function syncToCloud() {
+        database.ref('tools_data').set(db);
+    }
+
+    function showSec(name) {
+        ['entry','report','setting'].forEach(s => document.getElementById(s+'-sec').classList.add('hidden'));
+        ['n-entry','n-report','n-setting'].forEach(n => document.getElementById(n).classList.remove('active-nav'));
+        document.getElementById(name+'-sec').classList.remove('hidden');
+        document.getElementById('n-'+name).classList.add('active-nav');
+        if(name === 'report') updateAllReports();
+    }
+
+    function setMode(mode) {
+        currentMode = mode;
+        let html = '';
+        if(mode === 'OUT') {
+            html = `<label>ઓપરેટર:</label><select id="sel-op">${db.operators.map(o=>`<option>${o}</option>`).join('')}</select>
+                    <label>ટૂલ:</label><select id="sel-tool">${db.tools.map(t=>`<option>${t.name}</option>`).join('')}</select>
+                    <label>નંગ:</label><input type="number" id="sel-qty" value="1">`;
+        } else {
+            html = `<label>પ્રકાર:</label><select id="in-type" onchange="document.getElementById('in-op-box').style.display = this.value==='Purchase'?'none':'block'"><option value="Return">પરત</option><option value="Purchase">નવી ખરીદી</option></select>
+                    <div id="in-op-box"><label>ઓપરેટર:</label><select id="sel-op">${db.operators.map(o=>`<option>${o}</option>`).join('')}</select></div>
+                    <label>ટૂલ:</label><select id="sel-tool">${db.tools.map(t=>`<option>${t.name}</option>`).join('')}</select>
+                    <label>નંગ:</label><input type="number" id="sel-qty" value="1">`;
+        }
+        document.getElementById('entry-fields').innerHTML = html;
+    }
+
+    function saveTransaction() {
+        let entry = {
+            id: Date.now(), // Unique ID for deletion
+            date: document.getElementById('t-date').value,
+            type: currentMode,
+            op: currentMode === 'OUT' ? document.getElementById('sel-op').value : (document.getElementById('in-type').value==='Purchase' ? 'STOCK' : document.getElementById('sel-op').value),
+            tool: document.getElementById('sel-tool').value,
+            qty: parseInt(document.getElementById('sel-qty').value),
+            subType: currentMode === 'IN' ? document.getElementById('in-type').value : 'Issue'
+        };
+        db.transactions.push(entry);
+        syncToCloud();
+        alert("સેવ થઈ ગયું!");
+    }
+
+    // NEW: Entry Delete Function
+    function deleteTransaction(id) {
+        if(confirm("શું તમે આ એન્ટ્રી ડીલીટ કરવા માંગો છો? આનાથી સ્ટોક બદલાઈ જશે.")) {
+            db.transactions = db.transactions.filter(t => t.id !== id);
+            syncToCloud();
+            updateAllReports();
+        }
+    }
+
+    function updateAllReports() {
+        let from = document.getElementById('rep-from').value;
+        let to = document.getElementById('rep-to').value;
+        let search = document.getElementById('search-box').value.toLowerCase();
+
+        let stockHtml = '';
+        db.tools.forEach(t => {
+            let buy = t.initialStock + db.transactions.filter(tr => tr.tool === t.name && tr.subType === 'Purchase').reduce((s,c)=>s+c.qty, 0);
+            let out = db.transactions.filter(tr => tr.tool === t.name && tr.type === 'OUT').reduce((s,c)=>s+c.qty, 0);
+            let ret = db.transactions.filter(tr => tr.tool === t.name && tr.subType === 'Return').reduce((s,c)=>s+c.qty, 0);
+            let avail = buy - (out - ret);
+            stockHtml += `<tr><td>${t.cat}</td><td>${t.name}</td><td>${buy}</td><td>${avail}</td></tr>`;
+        });
+        document.getElementById('stock-body').innerHTML = stockHtml;
+
+        let histHtml = '';
+        db.transactions.filter(tr => tr.date >= from && tr.date <= to && (tr.op.toLowerCase().includes(search) || tr.tool.toLowerCase().includes(search)))
+        .slice().reverse().forEach(tr => {
+            histHtml += `<tr>
+                <td>${tr.date}</td>
+                <td>${tr.op}</td>
+                <td>${tr.tool}</td>
+                <td>${tr.subType}</td>
+                <td>${tr.qty}</td>
+                <td><button class="btn-del-sm" onclick="deleteTransaction(${tr.id})">Delete</button></td>
+            </tr>`;
+        });
+        document.getElementById('history-body').innerHTML = histHtml;
+    }
+
+    function downloadPDF(type) {
+        const { jsPDF } = window.jspdf;
+        const doc = new jsPDF();
+        const from = document.getElementById('rep-from').value;
+        const to = document.getElementById('rep-to').value;
+
+        doc.setFontSize(18);
+        doc.text("CHAMUNDA WORKERS CNC TOOLS", 14, 20);
+        doc.setFontSize(12);
+
+        if (type === 'HISTORY') {
+            doc.text(`Transaction Report: ${from} to ${to}`, 14, 30);
+            let rows = db.transactions.filter(tr => tr.date >= from && tr.date <= to).map(tr => [tr.date, tr.op, tr.tool, tr.subType, tr.qty]);
+            doc.autoTable({ startY: 35, head: [['Date', 'Operator', 'Tool', 'Type', 'Qty']], body: rows });
+            doc.save(`Chamunda_CNC_History_${from}.pdf`);
+        } else {
+            doc.text(`Current Stock Status - Date: ${new Date().toLocaleDateString()}`, 14, 30);
+            let rows = db.tools.map(t => {
+                let buy = t.initialStock + db.transactions.filter(tr => tr.tool === t.name && tr.subType === 'Purchase').reduce((s,c)=>s+c.qty, 0);
+                let out = db.transactions.filter(tr => tr.tool === t.name && tr.type === 'OUT').reduce((s,c)=>s+c.qty, 0);
+                let ret = db.transactions.filter(tr => tr.tool === t.name && tr.subType === 'Return').reduce((s,c)=>s+c.qty, 0);
+                return [t.cat, t.name, buy, (buy - (out - ret))];
+            });
+            doc.autoTable({ startY: 35, head: [['Category', 'Tool Name', 'Total Stock', 'Available']], body: rows });
+            doc.save(`Chamunda_CNC_Stock.pdf`);
+        }
+    }
+
+    function addMaster(key, id) {
+        let val = document.getElementById(id).value;
+        if(val) { db[key].push(val); document.getElementById(id).value=''; syncToCloud(); }
+    }
+
+    function addToolMaster() {
+        let name = document.getElementById('new-tool').value;
+        let cat = document.getElementById('new-cat').value;
+        let stock = parseInt(document.getElementById('new-stock').value) || 0;
+        if(name) { db.tools.push({name, cat, initialStock: stock}); syncToCloud(); }
+    }
+
+    function renderMasterLists() {
+        document.getElementById('op-list-display').innerHTML = db.operators.map((o,i)=>`<div>${o} <button onclick="db.operators.splice(${i},1);syncToCloud()" style="width:auto;padding:2px 5px;background:red;">X</button></div>`).join('');
+        document.getElementById('tool-list-display').innerHTML = db.tools.map((t,i)=>`<div>${t.name} <button onclick="db.tools.splice(${i},1);syncToCloud()" style="width:auto;padding:2px 5px;background:red;">X</button></div>`).join('');
+    }
+
+    function toggleTheme() {
+        let t = document.documentElement.getAttribute('data-theme') === 'dark' ? 'light' : 'dark';
+        document.documentElement.setAttribute('data-theme', t);
+    }
+
+    document.getElementById('t-date').valueAsDate = new Date();
+    document.getElementById('rep-from').valueAsDate = new Date();
+    document.getElementById('rep-to').valueAsDate = new Date();
+    setMode('OUT');
+</script>
+
+</body>
+</html>
