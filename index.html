@@ -31,12 +31,14 @@
         th, td { border: 1px solid #555; padding: 10px; text-align: left; }
         .status-sync { font-size: 11px; color: green; text-align: center; margin-bottom: 5px; }
         .btn-del-sm { background: red; padding: 4px 8px; font-size: 10px; width: auto; margin: 0; }
+        
+        .master-item { display: flex; justify-content: space-between; align-items: center; padding: 5px; border-bottom: 1px solid #ddd; }
     </style>
 </head>
 <body>
 
 <div class="header">
-    <h2 style="margin:0; color:var(--pri);">ચામુંડા વર્કર્સ સીએનસી ટુલ્સ</h2>
+    <h2 style="margin:0; color:var(--pri);"> Shri Chamunda Eng workers Tools</h2>
     <div id="sync-status" class="status-sync">ઓનલાઇન સિંક ચાલુ છે...</div>
 </div>
 
@@ -108,7 +110,7 @@
 </div>
 
 <nav class="bottom-nav">
-    <div class="nav-item active-nav" id="n-entry" onclick="showSec('entry')">📝<br>એન્ટ્રી</div>
+    <div class="nav-item active-nav" id="n-entry" onclick="showSec('entry')">✒️<br>એન્ટ્રી</div>
     <div class="nav-item" id="n-report" onclick="showSec('report')">📊<br>રિપોર્ટ</div>
     <div class="nav-item" id="n-setting" onclick="showSec('setting')">⚙️<br>સેટિંગ્સ</div>
 </nav>
@@ -176,7 +178,7 @@
 
     function saveTransaction() {
         let entry = {
-            id: Date.now(), // Unique ID for deletion
+            id: Date.now(), 
             date: document.getElementById('t-date').value,
             type: currentMode,
             op: currentMode === 'OUT' ? document.getElementById('sel-op').value : (document.getElementById('in-type').value==='Purchase' ? 'STOCK' : document.getElementById('sel-op').value),
@@ -189,12 +191,16 @@
         alert("સેવ થઈ ગયું!");
     }
 
-    // NEW: Entry Delete Function
     function deleteTransaction(id) {
-        if(confirm("શું તમે આ એન્ટ્રી ડીલીટ કરવા માંગો છો? આનાથી સ્ટોક બદલાઈ જશે.")) {
-            db.transactions = db.transactions.filter(t => t.id !== id);
-            syncToCloud();
-            updateAllReports();
+        let pass = prompt("એન્ટ્રી ડીલીટ કરવા માટે પાસવર્ડ નાખો:");
+        if(pass === "2865") {
+            if(confirm("શું તમે આ એન્ટ્રી ડીલીટ કરવા માંગો છો? આનાથી સ્ટોક બદલાઈ જશે.")) {
+                db.transactions = db.transactions.filter(t => t.id !== id);
+                syncToCloud();
+                updateAllReports();
+            }
+        } else {
+            alert("ખોટો પાસવર્ડ!");
         }
     }
 
@@ -256,6 +262,19 @@
         }
     }
 
+    // સુધારેલું Delete function પાસવર્ડ સાથે
+    function deleteMaster(key, index) {
+        let pass = prompt("માસ્ટર ડેટા ડીલીટ કરવા માટે પાસવર્ડ નાખો:");
+        if(pass === "2865") {
+            if(confirm("શું તમે આ ખરેખર ડીલીટ કરવા માંગો છો?")) {
+                db[key].splice(index, 1);
+                syncToCloud();
+            }
+        } else {
+            alert("ખોટો પાસવર્ડ! તમે ડીલીટ કરી શકતા નથી.");
+        }
+    }
+
     function addMaster(key, id) {
         let val = document.getElementById(id).value;
         if(val) { db[key].push(val); document.getElementById(id).value=''; syncToCloud(); }
@@ -269,8 +288,17 @@
     }
 
     function renderMasterLists() {
-        document.getElementById('op-list-display').innerHTML = db.operators.map((o,i)=>`<div>${o} <button onclick="db.operators.splice(${i},1);syncToCloud()" style="width:auto;padding:2px 5px;background:red;">X</button></div>`).join('');
-        document.getElementById('tool-list-display').innerHTML = db.tools.map((t,i)=>`<div>${t.name} <button onclick="db.tools.splice(${i},1);syncToCloud()" style="width:auto;padding:2px 5px;background:red;">X</button></div>`).join('');
+        document.getElementById('op-list-display').innerHTML = db.operators.map((o,i)=>`
+            <div class="master-item">
+                <span>${o}</span>
+                <button onclick="deleteMaster('operators', ${i})" style="width:auto;padding:2px 8px;background:red;">X</button>
+            </div>`).join('');
+        
+        document.getElementById('tool-list-display').innerHTML = db.tools.map((t,i)=>`
+            <div class="master-item">
+                <span>${t.name} (${t.cat})</span>
+                <button onclick="deleteMaster('tools', ${i})" style="width:auto;padding:2px 8px;background:red;">X</button>
+            </div>`).join('');
     }
 
     function toggleTheme() {
