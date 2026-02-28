@@ -61,8 +61,8 @@
         <div class="card">
             <h4>રિપોર્ટ ફિલ્ટર (તારીખ થી તારીખ)</h4>
             <div style="display:flex; gap:10px;">
-                <input type="date" id="rep-from">
-                <input type="date" id="rep-to">
+                <input type="date" id="rep-from" onchange="updateAllReports()">
+                <input type="date" id="rep-to" onchange="updateAllReports()">
             </div>
             <input type="text" id="search-box" placeholder="નામ શોધો (ઓપરેટર / ટૂલ)..." oninput="updateAllReports()">
         </div>
@@ -70,8 +70,8 @@
         <div class="card">
             <h4>PDF રિપોર્ટ ડાઉનલોડ</h4>
             <div style="display:flex; gap:10px;">
-                <button onclick="downloadPDF('HISTORY')" style="background:#17a2b8; font-size: 12px;">તારીખ મુજબ વિગત (PDF)</button>
-                <button onclick="downloadPDF('STOCK')" style="background:#e83e8c; font-size: 12px;">કેટેગરી મુજબ સ્ટોક (PDF)</button>
+                <button onclick="downloadPDF('HISTORY')" style="background:#17a2b8; font-size: 12px;">વ્યવહાર રિપોર્ટ (PDF)</button>
+                <button onclick="downloadPDF('STOCK')" style="background:#e83e8c; font-size: 12px;">સ્ટોક રિપોર્ટ (PDF)</button>
             </div>
         </div>
 
@@ -84,7 +84,7 @@
         </div>
 
         <div class="card" style="overflow-x:auto;">
-            <h4>વ્યવહાર ઇતિહાસ (એન્ટ્રી ડીલીટ કરી શકાય)</h4>
+            <h4>વ્યવહાર ઇતિહાસ</h4>
             <table id="history-table">
                 <thead><tr><th>તારીખ</th><th>ઓપરેટર</th><th>ટૂલ</th><th>પ્રકાર</th><th>નંગ</th><th>Action</th></tr></thead>
                 <tbody id="history-body"></tbody>
@@ -116,7 +116,6 @@
 </nav>
 
 <script>
-    // Firebase Config
     const firebaseConfig = {
         apiKey: "AIzaSyCsqhpmQDF0X6ssqTxQ_p2d15VZDJMcE0g",
         authDomain: "prakashbhaitools.firebaseapp.com",
@@ -133,7 +132,6 @@
     let db = { operators: [], tools: [], transactions: [] };
     let currentMode = 'OUT';
 
-    // Sync from Firebase
     database.ref('tools_data').on('value', (snapshot) => {
         const data = snapshot.val();
         if (data) {
@@ -191,37 +189,34 @@
         alert("સેવ થઈ ગયું!");
     }
 
-    function deleteTransaction(id) {
-        let pass = prompt("એન્ટ્રી ડીલીટ કરવા માટે પાસવર્ડ નાખો:");
-        if(pass === "2865") {
-            if(confirm("શું તમે આ એન્ટ્રી ડીલીટ કરવા માંગો છો? આનાથી સ્ટોક બદલાઈ જશે.")) {
-                db.transactions = db.transactions.filter(t => t.id !== id);
-                syncToCloud();
-                updateAllReports();
-            }
-        } else {
-            alert("ખોટો પાસવર્ડ!");
-        }
-    }
-
+    // રિપોર્ટ અપડેટ લોજિક (તારીખ અને સર્ચ સાથે)
     function updateAllReports() {
         let from = document.getElementById('rep-from').value;
         let to = document.getElementById('rep-to').value;
         let search = document.getElementById('search-box').value.toLowerCase();
 
+        // સ્ટોક સ્ટેટસ ટેબલ
         let stockHtml = '';
         db.tools.forEach(t => {
-            let buy = t.initialStock + db.transactions.filter(tr => tr.tool === t.name && tr.subType === 'Purchase').reduce((s,c)=>s+c.qty, 0);
-            let out = db.transactions.filter(tr => tr.tool === t.name && tr.type === 'OUT').reduce((s,c)=>s+c.qty, 0);
-            let ret = db.transactions.filter(tr => tr.tool === t.name && tr.subType === 'Return').reduce((s,c)=>s+c.qty, 0);
-            let avail = buy - (out - ret);
-            stockHtml += `<tr><td>${t.cat}</td><td>${t.name}</td><td>${buy}</td><td>${avail}</td></tr>`;
+            let purchaseQty = db.transactions.filter(tr => tr.tool === t.name && tr.subType === 'Purchase').reduce((s, c) => s + c.qty, 0);
+            let totalBuy = (t.initialStock || 0) + purchaseQty;
+            let outQty = db.transactions.filter(tr => tr.tool === t.name && tr.type === 'OUT').reduce((s, c) => s + c.qty, 0);
+            let returnQty = db.transactions.filter(tr => tr.tool === t.name && tr.subType === 'Return').reduce((s, c) => s + c.qty, 0);
+            let avail = (totalBuy + returnQty) - outQty;
+
+            stockHtml += `<tr><td>${t.cat}</td><td>${t.name}</td><td>${totalBuy}</td><td style="font-weight:bold; color:${avail < 0 ? 'red' : 'inherit'}">${avail}</td></tr>`;
         });
         document.getElementById('stock-body').innerHTML = stockHtml;
 
+        // હિસ્ટ્રી ટેબલ - તારીખ ફિલ્ટર સાથે
         let histHtml = '';
-        db.transactions.filter(tr => tr.date >= from && tr.date <= to && (tr.op.toLowerCase().includes(search) || tr.tool.toLowerCase().includes(search)))
-        .slice().reverse().forEach(tr => {
+        let filteredTrans = db.transactions.filter(tr => {
+            let matchesDate = (!from || tr.date >= from) && (!to || tr.date <= to);
+            let matchesSearch = tr.op.toLowerCase().includes(search) || tr.tool.toLowerCase().includes(search);
+            return matchesDate && matchesSearch;
+        });
+
+        filteredTrans.slice().reverse().forEach(tr => {
             histHtml += `<tr>
                 <td>${tr.date}</td>
                 <td>${tr.op}</td>
@@ -240,39 +235,37 @@
         const from = document.getElementById('rep-from').value;
         const to = document.getElementById('rep-to').value;
 
-        doc.setFontSize(18);
-        doc.text("CHAMUNDA WORKERS CNC TOOLS", 14, 20);
-        doc.setFontSize(12);
+        doc.setFontSize(16);
+        doc.text("SHRI CHAMUNDA ENG WORKERS TOOLS", 14, 20);
+        doc.setFontSize(10);
 
         if (type === 'HISTORY') {
-            doc.text(`Transaction Report: ${from} to ${to}`, 14, 30);
-            let rows = db.transactions.filter(tr => tr.date >= from && tr.date <= to).map(tr => [tr.date, tr.op, tr.tool, tr.subType, tr.qty]);
+            doc.text(`Transaction Report: ${from || 'All'} to ${to || 'All'}`, 14, 30);
+            let rows = db.transactions
+                .filter(tr => (!from || tr.date >= from) && (!to || tr.date <= to))
+                .map(tr => [tr.date, tr.op, tr.tool, tr.subType, tr.qty]);
             doc.autoTable({ startY: 35, head: [['Date', 'Operator', 'Tool', 'Type', 'Qty']], body: rows });
-            doc.save(`Chamunda_CNC_History_${from}.pdf`);
+            doc.save(`CNC_History_${from || 'report'}.pdf`);
         } else {
             doc.text(`Current Stock Status - Date: ${new Date().toLocaleDateString()}`, 14, 30);
             let rows = db.tools.map(t => {
-                let buy = t.initialStock + db.transactions.filter(tr => tr.tool === t.name && tr.subType === 'Purchase').reduce((s,c)=>s+c.qty, 0);
-                let out = db.transactions.filter(tr => tr.tool === t.name && tr.type === 'OUT').reduce((s,c)=>s+c.qty, 0);
-                let ret = db.transactions.filter(tr => tr.tool === t.name && tr.subType === 'Return').reduce((s,c)=>s+c.qty, 0);
-                return [t.cat, t.name, buy, (buy - (out - ret))];
+                let p = db.transactions.filter(tr => tr.tool === t.name && tr.subType === 'Purchase').reduce((s, c) => s + c.qty, 0);
+                let totalBuy = (t.initialStock || 0) + p;
+                let out = db.transactions.filter(tr => tr.tool === t.name && tr.type === 'OUT').reduce((s, c) => s + c.qty, 0);
+                let ret = db.transactions.filter(tr => tr.tool === t.name && tr.subType === 'Return').reduce((s, c) => s + c.qty, 0);
+                return [t.cat, t.name, totalBuy, (totalBuy + ret - out)];
             });
             doc.autoTable({ startY: 35, head: [['Category', 'Tool Name', 'Total Stock', 'Available']], body: rows });
-            doc.save(`Chamunda_CNC_Stock.pdf`);
+            doc.save(`CNC_Stock_Report.pdf`);
         }
     }
 
-    // સુધારેલું Delete function પાસવર્ડ સાથે
-    function deleteMaster(key, index) {
-        let pass = prompt("માસ્ટર ડેટા ડીલીટ કરવા માટે પાસવર્ડ નાખો:");
+    function deleteTransaction(id) {
+        let pass = prompt("ડીલીટ કરવા પાસવર્ડ નાખો:");
         if(pass === "2865") {
-            if(confirm("શું તમે આ ખરેખર ડીલીટ કરવા માંગો છો?")) {
-                db[key].splice(index, 1);
-                syncToCloud();
-            }
-        } else {
-            alert("ખોટો પાસવર્ડ! તમે ડીલીટ કરી શકતા નથી.");
-        }
+            db.transactions = db.transactions.filter(t => t.id !== id);
+            syncToCloud();
+        } else { alert("ખોટો પાસવર્ડ!"); }
     }
 
     function addMaster(key, id) {
@@ -287,18 +280,14 @@
         if(name) { db.tools.push({name, cat, initialStock: stock}); syncToCloud(); }
     }
 
+    function deleteMaster(key, index) {
+        let pass = prompt("પાસવર્ડ:");
+        if(pass === "2865") { db[key].splice(index, 1); syncToCloud(); }
+    }
+
     function renderMasterLists() {
-        document.getElementById('op-list-display').innerHTML = db.operators.map((o,i)=>`
-            <div class="master-item">
-                <span>${o}</span>
-                <button onclick="deleteMaster('operators', ${i})" style="width:auto;padding:2px 8px;background:red;">X</button>
-            </div>`).join('');
-        
-        document.getElementById('tool-list-display').innerHTML = db.tools.map((t,i)=>`
-            <div class="master-item">
-                <span>${t.name} (${t.cat})</span>
-                <button onclick="deleteMaster('tools', ${i})" style="width:auto;padding:2px 8px;background:red;">X</button>
-            </div>`).join('');
+        document.getElementById('op-list-display').innerHTML = db.operators.map((o,i)=>`<div class="master-item"><span>${o}</span><button onclick="deleteMaster('operators', ${i})" style="width:auto;padding:2px 8px;background:red;">X</button></div>`).join('');
+        document.getElementById('tool-list-display').innerHTML = db.tools.map((t,i)=>`<div class="master-item"><span>${t.name} (${t.cat})</span><button onclick="deleteMaster('tools', ${i})" style="width:auto;padding:2px 8px;background:red;">X</button></div>`).join('');
     }
 
     function toggleTheme() {
@@ -307,10 +296,7 @@
     }
 
     document.getElementById('t-date').valueAsDate = new Date();
-    document.getElementById('rep-from').valueAsDate = new Date();
-    document.getElementById('rep-to').valueAsDate = new Date();
     setMode('OUT');
 </script>
-
 </body>
 </html>
