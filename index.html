@@ -2,8 +2,8 @@
 <html lang="gu">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Chamunda Workers CNC Tools</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Chamunda Workers CNC Tools - Pro</title>
     
     <script src="https://www.gstatic.com/firebasejs/9.17.1/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.17.1/firebase-database-compat.js"></script>
@@ -11,100 +11,116 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.25/jspdf.plugin.autotable.min.js"></script>
 
     <style>
-        :root { --bg: #ffffff; --text: #333; --card: #f4f4f4; --nav: #eee; --pri: #d32f2f; }
-        [data-theme="dark"] { --bg: #121212; --text: #ffffff; --card: #1e1e1e; --nav: #222; --pri: #ff5252; }
+        :root { --bg: #ffffff; --text: #333; --card: #f9f9f9; --nav: #ffffff; --pri: #d32f2f; --sec: #28a745; }
+        [data-theme="dark"] { --bg: #121212; --text: #ffffff; --card: #1e1e1e; --nav: #1e1e1e; --pri: #ff5252; --sec: #4caf50; }
 
-        body { font-family: 'Segoe UI', sans-serif; background: var(--bg); color: var(--text); margin: 0; padding-bottom: 80px; transition: 0.3s; }
-        .header { text-align: center; padding: 15px; border-bottom: 2px solid var(--pri); position: sticky; top: 0; background: var(--bg); z-index: 100; }
-        .container { padding: 10px; max-width: 900px; margin: auto; }
+        body { font-family: 'Segoe UI', system-ui, sans-serif; background: var(--bg); color: var(--text); margin: 0; padding-bottom: 80px; transition: 0.3s; overflow-x: hidden; }
+        .header { text-align: center; padding: 10px; border-bottom: 3px solid var(--pri); position: sticky; top: 0; background: var(--bg); z-index: 1000; box-shadow: 0 2px 10px rgba(0,0,0,0.1); }
+        .container { padding: 15px; max-width: 600px; margin: auto; }
         
-        .card { background: var(--card); padding: 15px; border-radius: 10px; margin-bottom: 15px; box-shadow: 0 2px 5px rgba(0,0,0,0.1); }
-        input, select, button { width: 100%; padding: 12px; margin-top: 8px; border-radius: 5px; border: 1px solid #ccc; box-sizing: border-box; font-size: 15px; }
-        button { background: var(--pri); color: white; border: none; cursor: pointer; font-weight: bold; }
+        .card { background: var(--card); padding: 15px; border-radius: 12px; margin-bottom: 15px; box-shadow: 0 4px 8px rgba(0,0,0,0.05); border: 1px solid rgba(0,0,0,0.05); }
+        input, select, button { width: 100%; padding: 12px; margin-top: 10px; border-radius: 8px; border: 1px solid #ccc; box-sizing: border-box; font-size: 16px; outline: none; }
+        button { background: var(--pri); color: white; border: none; cursor: pointer; font-weight: bold; transition: 0.2s; }
+        button:active { transform: scale(0.98); }
         
-        .bottom-nav { position: fixed; bottom: 0; width: 100%; background: var(--nav); display: flex; border-top: 1px solid #444; height: 65px; }
-        .nav-item { flex: 1; text-align: center; padding: 10px; cursor: pointer; font-size: 12px; }
-        .active-nav { border-top: 3px solid var(--pri); background: rgba(211, 47, 47, 0.1); }
+        .bottom-nav { position: fixed; bottom: 0; width: 100%; background: var(--nav); display: flex; border-top: 1px solid #ddd; height: 70px; box-shadow: 0 -2px 10px rgba(0,0,0,0.1); }
+        .nav-item { flex: 1; text-align: center; padding: 12px 0; cursor: pointer; font-size: 13px; font-weight: bold; color: #777; transition: 0.3s; }
+        .active-nav { color: var(--pri); border-top: 4px solid var(--pri); background: rgba(211, 47, 47, 0.05); }
 
         .hidden { display: none; }
-        table { width: 100%; border-collapse: collapse; margin-top: 15px; font-size: 13px; }
-        th, td { border: 1px solid #555; padding: 10px; text-align: left; }
-        .status-sync { font-size: 11px; color: green; text-align: center; margin-bottom: 5px; }
-        .btn-del-sm { background: red; padding: 4px 8px; font-size: 10px; width: auto; margin: 0; }
+        table { width: 100%; border-collapse: collapse; margin-top: 15px; font-size: 14px; border-radius: 8px; overflow: hidden; }
+        th, td { border: 1px solid #ddd; padding: 12px 8px; text-align: left; }
+        th { background: #eee; color: #333; }
+        [data-theme="dark"] th { background: #333; color: #eee; }
+
+        .status-sync { font-size: 12px; color: green; font-weight: bold; }
+        .btn-sm { width: auto; padding: 6px 12px; font-size: 12px; margin: 2px; }
+        .btn-edit { background: #ffc107; color: black; }
+        .low-stock { color: #d32f2f; font-weight: bold; background: rgba(211, 47, 47, 0.1); }
         
-        .master-item { display: flex; justify-content: space-between; align-items: center; padding: 5px; border-bottom: 1px solid #ddd; }
+        .master-item { display: flex; justify-content: space-between; align-items: center; padding: 10px; border-bottom: 1px solid #eee; }
+        .action-btns { display: flex; gap: 5px; }
+        .table-responsive { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+
+        /* Searchable Select Style */
+        .search-container { position: relative; }
+        .search-results { position: absolute; background: white; width: 100%; border: 1px solid #ddd; z-index: 100; max-height: 150px; overflow-y: auto; border-radius: 5px; display: none; }
+        .search-results div { padding: 10px; cursor: pointer; border-bottom: 1px solid #eee; color: black; }
+        .search-results div:hover { background: #f0f0f0; }
     </style>
 </head>
 <body>
 
 <div class="header">
-    <h2 style="margin:0; color:var(--pri);"> Shri Chamunda Eng workers Tools</h2>
-    <div id="sync-status" class="status-sync">ઓનલાઇન સિંક ચાલુ છે...</div>
+    <h3 style="margin:0; color:var(--pri);">Shri Chamunda Eng Tools</h3>
+    <div id="sync-status" class="status-sync">Connecting...</div>
 </div>
 
 <div class="container">
     <div id="entry-sec">
         <div class="card">
-            <h4>નવી એન્ટ્રી</h4>
+            <h4>✒️ નવી એન્ટ્રી</h4>
             <label>તારીખ:</label>
             <input type="date" id="t-date">
-            <div style="display:flex; gap:10px; margin: 15px 0;">
-                <button id="btnOut" onclick="setMode('OUT')" style="background:#8540f5">Tool Out</button>
-                <button id="btnIn" onclick="setMode('IN')" style="background:#6c757d">Tool In</button>
+            <div style="display:flex; gap:10px; margin: 10px 0;">
+                <button id="btnOut" onclick="setMode('OUT')" style="background:#8540f5">Tool Out (વપરાશ)</button>
+                <button id="btnIn" onclick="setMode('PURCHASE')" style="background:#28a745">Purchase (નવી ખરીદી)</button>
             </div>
+            
             <div id="entry-fields"></div>
-            <button onclick="saveTransaction()" style="background: #28a745; margin-top: 15px;">સેવ અને સિંક કરો</button>
+
+            <button onclick="saveTransaction()" style="background: var(--sec); margin-top: 20px; font-size: 18px;">સેવ કરો</button>
         </div>
     </div>
 
     <div id="report-sec" class="hidden">
         <div class="card">
-            <h4>રિપોર્ટ ફિલ્ટર (તારીખ થી તારીખ)</h4>
-            <div style="display:flex; gap:10px;">
-                <input type="date" id="rep-from" onchange="updateAllReports()">
-                <input type="date" id="rep-to" onchange="updateAllReports()">
+            <h4>📊 રિપોર્ટ ફિલ્ટર</h4>
+            <div style="display:grid; grid-template-columns: 1fr 1fr; gap:5px;">
+                <div><label style="font-size: 12px;">મહિનો:</label><input type="month" id="rep-month" onchange="updateAllReports()"></div>
+                <div><label style="font-size: 12px;">કેટેગરી:</label><select id="rep-cat" onchange="updateAllReports()"></select></div>
             </div>
-            <input type="text" id="search-box" placeholder="નામ શોધો (ઓપરેટર / ટૂલ)..." oninput="updateAllReports()">
+            <input type="text" id="search-box" placeholder="નામ અથવા ટૂલ શોધો..." oninput="updateAllReports()" style="margin-top:10px;">
         </div>
 
         <div class="card">
-            <h4>PDF રિપોર્ટ ડાઉનલોડ</h4>
+            <h4>📥 ડાઉનલોડ</h4>
             <div style="display:flex; gap:10px;">
-                <button onclick="downloadPDF('HISTORY')" style="background:#17a2b8; font-size: 12px;">વ્યવહાર રિપોર્ટ (PDF)</button>
-                <button onclick="downloadPDF('STOCK')" style="background:#e83e8c; font-size: 12px;">સ્ટોક રિપોર્ટ (PDF)</button>
+                <button onclick="downloadPDF('HISTORY')" style="background:#17a2b8;">વ્યવહાર PDF</button>
+                <button onclick="downloadPDF('STOCK')" style="background:#e83e8c;">સ્ટોક PDF</button>
             </div>
         </div>
 
-        <div class="card" style="overflow-x:auto;">
-            <h4>સ્ટોક સ્ટેટસ</h4>
-            <table id="stock-table">
-                <thead><tr><th>કેટેગરી</th><th>ટૂલ</th><th>કુલ ખરીદી</th><th>સ્ટોકમાં</th></tr></thead>
-                <tbody id="stock-body"></tbody>
-            </table>
+        <div class="card table-responsive">
+            <h4>📦 સ્ટોક સ્ટેટસ</h4>
+            <table><thead><tr><th>ટૂલ</th><th>કુલ</th><th>બાકી</th></tr></thead><tbody id="stock-body"></tbody></table>
         </div>
-
-        <div class="card" style="overflow-x:auto;">
-            <h4>વ્યવહાર ઇતિહાસ</h4>
-            <table id="history-table">
-                <thead><tr><th>તારીખ</th><th>ઓપરેટર</th><th>ટૂલ</th><th>પ્રકાર</th><th>નંગ</th><th>Action</th></tr></thead>
-                <tbody id="history-body"></tbody>
-            </table>
+        <div class="card table-responsive">
+            <h4>🕒 ઇતિહાસ</h4>
+            <table><thead><tr><th>તારીખ</th><th>નામ</th><th>ટૂલ</th><th>નંગ</th><th>Action</th></tr></thead><tbody id="history-body"></tbody></table>
         </div>
     </div>
 
     <div id="setting-sec" class="hidden">
         <button onclick="toggleTheme()" style="background:#444">Dark / Light Mode</button>
+        
         <div class="card">
-            <h4>માસ્ટર સેટિંગ્સ</h4>
-            <input type="text" id="new-op" placeholder="નવા ઓપરેટરનું નામ">
-            <button onclick="addMaster('operators', 'new-op')">ઓપરેટર ઉમેરો</button>
-            <div id="op-list-display" style="margin-top:10px;"></div>
-            <hr>
+            <h4>👤 ઓપરેટર માસ્ટર</h4>
+            <input type="text" id="new-op" placeholder="ઓપરેટરનું નામ">
+            <button onclick="addOperator()">ઓપરેટર ઉમેરો</button>
+            <div id="op-list-display"></div>
+        </div>
+
+        <div class="card">
+            <h4 id="tool-master-title">🛠️ ટૂલ માસ્ટર</h4>
+            <input type="hidden" id="edit-tool-index" value="-1">
             <input type="text" id="new-tool" placeholder="ટૂલનું નામ">
-            <input type="text" id="new-cat" placeholder="કેટેગરી">
+            <input type="text" id="new-cat" placeholder="કેટેગરી (દા.ત. Boring, Insert)">
             <input type="number" id="new-stock" placeholder="ઓપનિંગ સ્ટોક">
-            <button onclick="addToolMaster()">ટૂલ ઉમેરો</button>
-            <div id="tool-list-display" style="margin-top:10px;"></div>
+            <input type="number" id="min-limit" placeholder="મિનિમમ સ્ટોક એલર્ટ">
+            <button id="tool-btn" onclick="addToolMaster()">ટૂલ ઉમેરો</button>
+            <button id="cancel-edit" class="hidden" onclick="cancelToolEdit()" style="background:#666">કેન્સલ</button>
+            <div id="tool-list-display"></div>
         </div>
     </div>
 </div>
@@ -128,7 +144,6 @@
 
     firebase.initializeApp(firebaseConfig);
     const database = firebase.database();
-
     let db = { operators: [], tools: [], transactions: [] };
     let currentMode = 'OUT';
 
@@ -140,154 +155,179 @@
             if(!db.operators) db.operators = [];
             if(!db.tools) db.tools = [];
             renderMasterLists();
+            updateCategoryDropdown();
             updateAllReports();
             setMode(currentMode);
             document.getElementById('sync-status').innerText = "ઓનલાઇન સિંક છે ✅";
         }
     });
 
-    function syncToCloud() {
-        database.ref('tools_data').set(db);
-    }
+    function syncToCloud() { database.ref('tools_data').set(db); }
 
     function showSec(name) {
         ['entry','report','setting'].forEach(s => document.getElementById(s+'-sec').classList.add('hidden'));
         ['n-entry','n-report','n-setting'].forEach(n => document.getElementById(n).classList.remove('active-nav'));
         document.getElementById(name+'-sec').classList.remove('hidden');
         document.getElementById('n-'+name).classList.add('active-nav');
-        if(name === 'report') updateAllReports();
     }
 
     function setMode(mode) {
         currentMode = mode;
+        document.getElementById('btnOut').style.opacity = mode === 'OUT' ? '1' : '0.5';
+        document.getElementById('btnIn').style.opacity = mode === 'PURCHASE' ? '1' : '0.5';
+
+        let opOptions = db.operators.map(o => `<option value="${o}">${o}</option>`).join('');
         let html = '';
         if(mode === 'OUT') {
-            html = `<label>ઓપરેટર:</label><select id="sel-op">${db.operators.map(o=>`<option>${o}</option>`).join('')}</select>
-                    <label>ટૂલ:</label><select id="sel-tool">${db.tools.map(t=>`<option>${t.name}</option>`).join('')}</select>
-                    <label>નંગ:</label><input type="number" id="sel-qty" value="1">`;
+            html = `<label>ઓપરેટર પસંદ કરો:</label><select id="sel-op">${opOptions}</select>`;
         } else {
-            html = `<label>પ્રકાર:</label><select id="in-type" onchange="document.getElementById('in-op-box').style.display = this.value==='Purchase'?'none':'block'"><option value="Return">પરત</option><option value="Purchase">નવી ખરીદી</option></select>
-                    <div id="in-op-box"><label>ઓપરેટર:</label><select id="sel-op">${db.operators.map(o=>`<option>${o}</option>`).join('')}</select></div>
-                    <label>ટૂલ:</label><select id="sel-tool">${db.tools.map(t=>`<option>${t.name}</option>`).join('')}</select>
-                    <label>નંગ:</label><input type="number" id="sel-qty" value="1">`;
+            html = `<label>સપ્લાયર/નોંધ:</label><input type="text" id="sel-op" value="STOCK PURCHASE">`;
         }
+        
+        html += `<label>ટૂલ શોધો/પસંદ કરો:</label>
+                 <div class="search-container">
+                    <input type="text" id="tool-search" placeholder="ટાઈપ કરો..." oninput="filterTools(this.value)" autocomplete="off">
+                    <div id="search-res" class="search-results"></div>
+                    <input type="hidden" id="sel-tool">
+                 </div>
+                 <label>નંગ (Quantity):</label><input type="number" id="sel-qty" value="1">`;
+        
         document.getElementById('entry-fields').innerHTML = html;
     }
 
-    function saveTransaction() {
-        let entry = {
-            id: Date.now(), 
-            date: document.getElementById('t-date').value,
-            type: currentMode,
-            op: currentMode === 'OUT' ? document.getElementById('sel-op').value : (document.getElementById('in-type').value==='Purchase' ? 'STOCK' : document.getElementById('sel-op').value),
-            tool: document.getElementById('sel-tool').value,
-            qty: parseInt(document.getElementById('sel-qty').value),
-            subType: currentMode === 'IN' ? document.getElementById('in-type').value : 'Issue'
-        };
-        db.transactions.push(entry);
-        syncToCloud();
-        alert("સેવ થઈ ગયું!");
+    function filterTools(val) {
+        const resDiv = document.getElementById('search-res');
+        if(!val) { resDiv.style.display = 'none'; return; }
+        const filtered = db.tools.filter(t => t.name.toLowerCase().includes(val.toLowerCase()));
+        if(filtered.length > 0) {
+            resDiv.innerHTML = filtered.map(t => `<div onclick="selectTool('${t.name}')">${t.name}</div>`).join('');
+            resDiv.style.display = 'block';
+        } else { resDiv.style.display = 'none'; }
     }
 
-    // રિપોર્ટ અપડેટ લોજિક (તારીખ અને સર્ચ સાથે)
+    function selectTool(name) {
+        document.getElementById('tool-search').value = name;
+        document.getElementById('sel-tool').value = name;
+        document.getElementById('search-res').style.display = 'none';
+    }
+
+    function saveTransaction() {
+        const date = document.getElementById('t-date').value;
+        const toolName = document.getElementById('sel-tool').value || document.getElementById('tool-search').value;
+        const qty = parseInt(document.getElementById('sel-qty').value);
+        const op = document.getElementById('sel-op').value;
+        if(!date || !toolName || !qty || !op) return alert("બધી વિગત ભરો!");
+        const toolData = db.tools.find(t => t.name === toolName);
+        if(!toolData) return alert("આ ટૂલ માસ્ટરમાં નથી!");
+        db.transactions.push({ id: Date.now(), date, month: date.substring(0, 7), type: currentMode, op, tool: toolName, cat: toolData.cat, qty, subType: currentMode === 'PURCHASE' ? 'Purchase' : 'Issue' });
+        syncToCloud();
+        alert("એન્ટ્રી સેવ થઈ ગઈ! ✅");
+        setMode(currentMode);
+    }
+
+    function addOperator() {
+        let val = document.getElementById('new-op').value.trim();
+        if(!val) return;
+        if(db.operators.includes(val)) return alert("આ ઓપરેટર પહેલેથી છે!");
+        db.operators.push(val);
+        syncToCloud();
+        alert("ઓપરેટર સેવ થઈ ગયો! ✅");
+        document.getElementById('new-op').value = '';
+    }
+
+    function addToolMaster() {
+        let name = document.getElementById('new-tool').value.trim();
+        let cat = document.getElementById('new-cat').value.trim() || 'General';
+        let stock = parseInt(document.getElementById('new-stock').value) || 0;
+        let limit = parseInt(document.getElementById('min-limit').value) || 0;
+        let index = parseInt(document.getElementById('edit-tool-index').value);
+        if(!name) return alert("નામ જરૂરી છે!");
+        if(index > -1) { db.tools[index] = { name, cat, initialStock: stock, minLimit: limit }; alert("ટૂલ અપડેટ થઈ ગયું! ✅"); }
+        else { db.tools.push({ name, cat, initialStock: stock, minLimit: limit }); alert("ટૂલ સેવ થઈ ગયું! ✅"); }
+        cancelToolEdit();
+        syncToCloud();
+    }
+
+    function editTool(index) {
+        const t = db.tools[index];
+        document.getElementById('tool-master-title').innerText = "🛠️ ટૂલ એડિટ કરો";
+        document.getElementById('edit-tool-index').value = index;
+        document.getElementById('new-tool').value = t.name;
+        document.getElementById('new-cat').value = t.cat;
+        document.getElementById('new-stock').value = t.initialStock;
+        document.getElementById('min-limit').value = t.minLimit;
+        document.getElementById('tool-btn').innerText = "અપડેટ કરો";
+        document.getElementById('cancel-edit').classList.remove('hidden');
+        window.scrollTo(0,0);
+    }
+
+    function cancelToolEdit() {
+        document.getElementById('tool-master-title').innerText = "🛠️ ટૂલ માસ્ટર";
+        document.getElementById('edit-tool-index').value = "-1";
+        document.getElementById('new-tool').value = '';
+        document.getElementById('new-cat').value = '';
+        document.getElementById('new-stock').value = '';
+        document.getElementById('min-limit').value = '';
+        document.getElementById('tool-btn').innerText = "ટૂલ ઉમેરો";
+        document.getElementById('cancel-edit').classList.add('hidden');
+    }
+
+    function renderMasterLists() {
+        document.getElementById('op-list-display').innerHTML = db.operators.map((o,i)=>`<div class="master-item"><span>${o}</span><button class="btn-sm" style="background:red" onclick="deleteMaster('operators', ${i})">X</button></div>`).join('');
+        document.getElementById('tool-list-display').innerHTML = db.tools.map((t,i)=>`<div class="master-item"><span>${t.name} <small>(${t.cat})</small></span><div class="action-btns"><button class="btn-sm btn-edit" onclick="editTool(${i})">Edit</button><button class="btn-sm" style="background:red" onclick="deleteMaster('tools', ${i})">X</button></div></div>`).join('');
+    }
+
+    function deleteMaster(key, index) { if(confirm("ડીલીટ કરવું છે?")) { let pass = prompt("પાસવર્ડ:"); if(pass === "2865") { db[key].splice(index, 1); syncToCloud(); } } }
+
+    function updateCategoryDropdown() {
+        const cats = [...new Set(db.tools.map(t => t.cat))];
+        let html = '<option value="ALL">બધી કેટેગરી</option>';
+        cats.forEach(c => { if(c) html += `<option value="${c}">${c}</option>`; });
+        document.getElementById('rep-cat').innerHTML = html;
+    }
+
     function updateAllReports() {
-        let from = document.getElementById('rep-from').value;
-        let to = document.getElementById('rep-to').value;
+        let selMonth = document.getElementById('rep-month').value;
+        let selCat = document.getElementById('rep-cat').value;
         let search = document.getElementById('search-box').value.toLowerCase();
-
-        // સ્ટોક સ્ટેટસ ટેબલ
         let stockHtml = '';
-        db.tools.forEach(t => {
-            let purchaseQty = db.transactions.filter(tr => tr.tool === t.name && tr.subType === 'Purchase').reduce((s, c) => s + c.qty, 0);
-            let totalBuy = (t.initialStock || 0) + purchaseQty;
+        db.tools.sort((a,b)=>a.name.localeCompare(b.name)).forEach(t => {
+            if(selCat !== 'ALL' && t.cat !== selCat) return;
+            let pQty = db.transactions.filter(tr => tr.tool === t.name && tr.subType === 'Purchase').reduce((s, c) => s + c.qty, 0);
             let outQty = db.transactions.filter(tr => tr.tool === t.name && tr.type === 'OUT').reduce((s, c) => s + c.qty, 0);
-            let returnQty = db.transactions.filter(tr => tr.tool === t.name && tr.subType === 'Return').reduce((s, c) => s + c.qty, 0);
-            let avail = (totalBuy + returnQty) - outQty;
-
-            stockHtml += `<tr><td>${t.cat}</td><td>${t.name}</td><td>${totalBuy}</td><td style="font-weight:bold; color:${avail < 0 ? 'red' : 'inherit'}">${avail}</td></tr>`;
+            let avail = (t.initialStock || 0) + pQty - outQty;
+            let isLow = avail <= (t.minLimit || 0);
+            stockHtml += `<tr class="${isLow ? 'low-stock' : ''}"><td>${t.name}</td><td>${(t.initialStock+pQty)}</td><td>${avail} ${isLow ? '⚠️' : ''}</td></tr>`;
         });
         document.getElementById('stock-body').innerHTML = stockHtml;
 
-        // હિસ્ટ્રી ટેબલ - તારીખ ફિલ્ટર સાથે
         let histHtml = '';
-        let filteredTrans = db.transactions.filter(tr => {
-            let matchesDate = (!from || tr.date >= from) && (!to || tr.date <= to);
-            let matchesSearch = tr.op.toLowerCase().includes(search) || tr.tool.toLowerCase().includes(search);
-            return matchesDate && matchesSearch;
-        });
-
-        filteredTrans.slice().reverse().forEach(tr => {
-            histHtml += `<tr>
-                <td>${tr.date}</td>
-                <td>${tr.op}</td>
-                <td>${tr.tool}</td>
-                <td>${tr.subType}</td>
-                <td>${tr.qty}</td>
-                <td><button class="btn-del-sm" onclick="deleteTransaction(${tr.id})">Delete</button></td>
-            </tr>`;
-        });
+        db.transactions.filter(tr => (!selMonth || tr.date.startsWith(selMonth)) && (selCat === 'ALL' || tr.cat === selCat) && (tr.op.toLowerCase().includes(search) || tr.tool.toLowerCase().includes(search)))
+        .slice().reverse().forEach(tr => { histHtml += `<tr><td>${tr.date}</td><td>${tr.op}</td><td>${tr.tool}</td><td>${tr.qty}</td><td><button class="btn-sm" style="background:red" onclick="deleteTransaction(${tr.id})">Del</button></td></tr>`; });
         document.getElementById('history-body').innerHTML = histHtml;
     }
+
+    function deleteTransaction(id) { if(confirm("ડીલીટ કરવો છે?")) { let pass = prompt("પાસવર્ડ:"); if(pass === "2865") { db.transactions = db.transactions.filter(t => t.id !== id); syncToCloud(); } } }
 
     function downloadPDF(type) {
         const { jsPDF } = window.jspdf;
         const doc = new jsPDF();
-        const from = document.getElementById('rep-from').value;
-        const to = document.getElementById('rep-to').value;
-
-        doc.setFontSize(16);
-        doc.text("SHRI CHAMUNDA ENG WORKERS TOOLS", 14, 20);
-        doc.setFontSize(10);
-
-        if (type === 'HISTORY') {
-            doc.text(`Transaction Report: ${from || 'All'} to ${to || 'All'}`, 14, 30);
-            let rows = db.transactions
-                .filter(tr => (!from || tr.date >= from) && (!to || tr.date <= to))
-                .map(tr => [tr.date, tr.op, tr.tool, tr.subType, tr.qty]);
-            doc.autoTable({ startY: 35, head: [['Date', 'Operator', 'Tool', 'Type', 'Qty']], body: rows });
-            doc.save(`CNC_History_${from || 'report'}.pdf`);
+        let selMonth = document.getElementById('rep-month').value || "All Time";
+        doc.text(`CHAMUNDA TOOLS REPORT - ${selMonth}`, 14, 15);
+        if(type === 'HISTORY') {
+            let rows = db.transactions.filter(tr => !document.getElementById('rep-month').value || tr.date.startsWith(document.getElementById('rep-month').value))
+                        .map(tr => [tr.date, tr.op, tr.tool, tr.type, tr.qty]);
+            doc.autoTable({ head: [['Date', 'User', 'Tool', 'Mode', 'Qty']], body: rows, startY: 25 });
+            doc.save("Report.pdf");
         } else {
-            doc.text(`Current Stock Status - Date: ${new Date().toLocaleDateString()}`, 14, 30);
             let rows = db.tools.map(t => {
-                let p = db.transactions.filter(tr => tr.tool === t.name && tr.subType === 'Purchase').reduce((s, c) => s + c.qty, 0);
-                let totalBuy = (t.initialStock || 0) + p;
-                let out = db.transactions.filter(tr => tr.tool === t.name && tr.type === 'OUT').reduce((s, c) => s + c.qty, 0);
-                let ret = db.transactions.filter(tr => tr.tool === t.name && tr.subType === 'Return').reduce((s, c) => s + c.qty, 0);
-                return [t.cat, t.name, totalBuy, (totalBuy + ret - out)];
+                let p = db.transactions.filter(tr => tr.tool === t.name && tr.subType === 'Purchase').reduce((s,c)=>s+c.qty, 0);
+                let out = db.transactions.filter(tr => tr.tool === t.name && tr.type === 'OUT').reduce((s,c)=>s+c.qty, 0);
+                return [t.name, t.cat, (t.initialStock+p), (t.initialStock+p-out)];
             });
-            doc.autoTable({ startY: 35, head: [['Category', 'Tool Name', 'Total Stock', 'Available']], body: rows });
-            doc.save(`CNC_Stock_Report.pdf`);
+            doc.autoTable({ head: [['Tool', 'Category', 'Total', 'Available']], body: rows, startY: 25 });
+            doc.save("Stock.pdf");
         }
-    }
-
-    function deleteTransaction(id) {
-        let pass = prompt("ડીલીટ કરવા પાસવર્ડ નાખો:");
-        if(pass === "2865") {
-            db.transactions = db.transactions.filter(t => t.id !== id);
-            syncToCloud();
-        } else { alert("ખોટો પાસવર્ડ!"); }
-    }
-
-    function addMaster(key, id) {
-        let val = document.getElementById(id).value;
-        if(val) { db[key].push(val); document.getElementById(id).value=''; syncToCloud(); }
-    }
-
-    function addToolMaster() {
-        let name = document.getElementById('new-tool').value;
-        let cat = document.getElementById('new-cat').value;
-        let stock = parseInt(document.getElementById('new-stock').value) || 0;
-        if(name) { db.tools.push({name, cat, initialStock: stock}); syncToCloud(); }
-    }
-
-    function deleteMaster(key, index) {
-        let pass = prompt("પાસવર્ડ:");
-        if(pass === "2865") { db[key].splice(index, 1); syncToCloud(); }
-    }
-
-    function renderMasterLists() {
-        document.getElementById('op-list-display').innerHTML = db.operators.map((o,i)=>`<div class="master-item"><span>${o}</span><button onclick="deleteMaster('operators', ${i})" style="width:auto;padding:2px 8px;background:red;">X</button></div>`).join('');
-        document.getElementById('tool-list-display').innerHTML = db.tools.map((t,i)=>`<div class="master-item"><span>${t.name} (${t.cat})</span><button onclick="deleteMaster('tools', ${i})" style="width:auto;padding:2px 8px;background:red;">X</button></div>`).join('');
     }
 
     function toggleTheme() {
@@ -296,7 +336,8 @@
     }
 
     document.getElementById('t-date').valueAsDate = new Date();
-    setMode('OUT');
+    document.getElementById('rep-month').value = new Date().toISOString().substring(0, 7);
+    setMode('OUT'); 
 </script>
 </body>
 </html>
